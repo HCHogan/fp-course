@@ -313,10 +313,7 @@ a <* b = const <$> a <*> b
 -- >>> sequence ((*10) :. (+2) :. Nil) 6
 -- [60,8]
 -- NOTE(hank): cool, remember that a function can be seen as ((->) a) and that's why this works
-sequence ::
-  Applicative k =>
-  List (k a)
-  -> k (List a)
+sequence :: Applicative k => List (k a) -> k (List a)
 sequence = foldRight (lift2 (:.)) (pure Nil)
 
 -- | Replicate an effect a given number of times.
