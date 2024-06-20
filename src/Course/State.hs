@@ -171,7 +171,11 @@ firstRepeat Nil = Empty
 firstRepeat (x:.xs) = eval (findM checkAndAdd xs) (S.singleton x)
 
 checkAndAdd :: Ord a => a -> State (S.Set a) Bool
-checkAndAdd a = State $ \s -> (S.member a s, S.insert a s)
+-- checkAndAdd a = State $ \s -> (S.member a s, S.insert a s)
+checkAndAdd a = do
+  s <- get
+  put $ S.insert a s
+  pure $ S.member a s
 
 -- | Remove all duplicate elements in a `List`.
 -- /Tip:/ Use `filtering` and `State` with a @Data.Set#Set@.

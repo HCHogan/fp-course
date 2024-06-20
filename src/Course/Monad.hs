@@ -73,6 +73,11 @@ instance Monad ((->) t) where
     -> ((->) t b)
   f =<< g = \x -> f (g x) x
 
+
+data Fuck f = Fuck (f Int) -- (* -> *) -> *
+
+data Fuck' a b = Fuck' a b -- * -> * -> *
+
 -- | Witness that all things with (=<<) and (<$>) also have (<*>).
 --
 -- >>> ExactlyOne (+10) <**> ExactlyOne 8
