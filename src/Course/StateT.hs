@@ -166,11 +166,8 @@ putT sa = StateT $ \_ ->
 --
 -- prop> \xs -> distinct' xs == distinct' (flatMap (\x -> x :. x :. Nil) xs)
 distinct' ::
-  Ord a =>
-  List a
-  -> List a
-distinct' =
-  error "todo: Course.StateT#distinct'"
+  Ord a => List a -> List a
+distinct' x = eval' (filtering (\a -> state' (S.notMember a &&& S.insert a)) x) S.empty
 
 -- | Remove all duplicate elements in a `List`.
 -- However, if you see a value greater than `100` in the list,
@@ -184,11 +181,8 @@ distinct' =
 -- >>> distinctF $ listh [1,2,3,2,1,101]
 -- Empty
 distinctF ::
-  (Ord a, Num a) =>
-  List a
-  -> Optional (List a)
-distinctF =
-  error "todo: Course.StateT#distinctF"
+  (Ord a, Num a) => List a -> Optional (List a)
+distinctF x = evalT (filtering (\a -> StateT (\s -> if a > 100 then Empty else Full(S.notMember a s, S.insert a s))) x) S.empty
 
 -- | An `OptionalT` is a functor of an `Optional` value.
 data OptionalT k a =
@@ -206,8 +200,7 @@ instance Functor k => Functor (OptionalT k) where
     (a -> b)
     -> OptionalT k a
     -> OptionalT k b
-  (<$>) =
-    error "todo: Course.StateT (<$>)#instance (OptionalT k)"
+  (<$>) f (OptionalT a) = OptionalT $ ((<$>). (<$>)) f a
 
 -- | Implement the `Applicative` instance for `OptionalT k` given a Monad k.
 --
@@ -237,15 +230,16 @@ instance Monad k => Applicative (OptionalT k) where
   pure ::
     a
     -> OptionalT k a
-  pure =
-    error "todo: Course.StateT pure#instance (OptionalT k)"
+  pure a = OptionalT $ pure $ pure a
 
   (<*>) ::
     OptionalT k (a -> b)
     -> OptionalT k a
     -> OptionalT k b
-  (<*>) =
-    error "todo: Course.StateT (<*>)#instance (OptionalT k)"
+  OptionalT f <*> OptionalT a = OptionalT $ do
+    f' <- f
+    a' <- a
+    pure $ f' <*> a'
 
 -- | Implement the `Monad` instance for `OptionalT k` given a Monad k.
 --
@@ -256,8 +250,11 @@ instance Monad k => Monad (OptionalT k) where
     (a -> OptionalT k b)
     -> OptionalT k a
     -> OptionalT k b
-  (=<<) =
-    error "todo: Course.StateT (=<<)#instance (OptionalT k)"
+  (=<<) f (OptionalT a) = OptionalT $ do
+    a' <- a
+    case a' of
+      Empty -> pure Empty
+      Full v -> runOptionalT (f v)
 
 -- | A `Logger` is a pair of a list of log values (`[l]`) and an arbitrary value (`a`).
 data Logger l a =
@@ -273,8 +270,7 @@ instance Functor (Logger l) where
     (a -> b)
     -> Logger l a
     -> Logger l b
-  (<$>) =
-    error "todo: Course.StateT (<$>)#instance (Logger l)"
+  (<$>) f (Logger l a) = Logger l (f a)
 
 -- | Implement the `Applicative` instance for `Logger`.
 --
@@ -287,15 +283,13 @@ instance Applicative (Logger l) where
   pure ::
     a
     -> Logger l a
-  pure =
-    error "todo: Course.StateT pure#instance (Logger l)"
+  pure a = Logger Nil a
 
   (<*>) ::
     Logger l (a -> b)
     -> Logger l a
     -> Logger l b
-  (<*>) =
-    error "todo: Course.StateT (<*>)#instance (Logger l)"
+  Logger l1 f <*> Logger l2 a = Logger (l1 ++ l2) (f a)
 
 -- | Implement the `Monad` instance for `Logger`.
 -- The `bind` implementation must append log values to maintain associativity.
@@ -307,8 +301,7 @@ instance Monad (Logger l) where
     (a -> Logger l b)
     -> Logger l a
     -> Logger l b
-  (=<<) =
-    error "todo: Course.StateT (=<<)#instance (Logger l)"
+  f =<< Logger l a = let (Logger l' b) = f a in Logger (l' ++ l) b
 
 -- | A utility function for producing a `Logger` with one log value.
 --
@@ -318,8 +311,7 @@ log1 ::
   l
   -> a
   -> Logger l a
-log1 =
-  error "todo: Course.StateT#log1"
+log1 l a = Logger (l :. Nil) a
 
 -- | Remove all duplicate integers from a list. Produce a log as you go.
 -- If there is an element above 100, then abort the entire computation and produce no result.
@@ -339,8 +331,14 @@ distinctG ::
   (Integral a, Show a) =>
   List a
   -> Logger Chars (Optional (List a))
-distinctG =
-  error "todo: Course.StateT#distinctG"
+distinctG x =
+  runOptionalT (evalT (filtering (\a -> StateT (\s ->
+    OptionalT (if a > 100
+                 then
+                   log1 (fromString ("aborting > 100: " P.++ show a)) Empty
+                 else (if even a
+                   then log1 (fromString ("even number: " P.++ show a))
+                   else pure) (Full (a `S.notMember` s, a `S.insert` s))))) x) S.empty)
 
 onFull ::
   Applicative k =>
